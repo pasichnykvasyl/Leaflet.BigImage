@@ -12,6 +12,12 @@ A [leaflet](http://www.leafletjs.com) plugin that allows users to receive a larg
 ## Demo
 [Leaflet.BigImage](https://pasichnykvasyl.github.io/Leaflet.BigImage/)
 
+## Downloads
+**NPM**
+````
+	npm install --save leaflet.bigimage
+````
+
 ## Usage
 
 **Step 1.** Include the required js and css files in your document.
