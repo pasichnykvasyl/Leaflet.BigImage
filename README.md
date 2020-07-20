@@ -2,7 +2,7 @@
 
 ## General information
 
-A [leaflet](http://www.leafletjs.com) plugin that allows users to receive a map as an Big image and donwload it.
+A [leaflet](http://www.leafletjs.com) plugin that allows users to receive a large map area and download it.
 * Opportunities:
   - Compatible with Leaflet v1+.
   - The ability to increase the area of the map without increasing.
