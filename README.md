@@ -18,7 +18,7 @@ A [leaflet](http://www.leafletjs.com) plugin that allows users to receive a map 
 
 ```html
   <link rel="stylesheet" href="dist/Leaflet.BigImage.css">
-	<script src="dist/Leaflet.BigImage.js"></script>
+  <script src="dist/Leaflet.BigImage.js"></script>
 ```
 
 **Step 2.** Add the following line of code to your map script
