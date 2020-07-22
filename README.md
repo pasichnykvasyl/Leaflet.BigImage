@@ -2,7 +2,7 @@
 
 ## General information
 
-A [leaflet](http://www.leafletjs.com) plugin that allows users to receive a map as an Big image and donwload it.
+A [leaflet](http://www.leafletjs.com) plugin that allows users to download an image with a scaled-up version of the visible map.
 * Opportunities:
   - Compatible with Leaflet v1+.
   - The ability to increase the area of the map without increasing.
@@ -11,6 +11,12 @@ A [leaflet](http://www.leafletjs.com) plugin that allows users to receive a map 
   
 ## Demo
 [Leaflet.BigImage](https://pasichnykvasyl.github.io/Leaflet.BigImage/)
+
+## Downloads
+**NPM**
+````
+	npm install --save leaflet.bigimage
+````
 
 ## Usage
 
@@ -24,7 +30,7 @@ A [leaflet](http://www.leafletjs.com) plugin that allows users to receive a map 
 **Step 2.** Add the following line of code to your map script
 
 ``` js
-	L.control.BigImage().addTo(mymap);
+	L.control.bigImage().addTo(mymap);
 ```
 
 **Step 3.**

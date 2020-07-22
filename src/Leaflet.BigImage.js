@@ -398,7 +398,7 @@
             }).then(() => {
                 self.canvas.toBlob(function (blob) {
                     let link = document.createElement('a');
-                    link.download = "my-image.png";
+                    link.download = "bigImage.png";
                     link.href = URL.createObjectURL(blob);
                     link.click();
                 });
@@ -408,7 +408,7 @@
         }
     });
 
-    L.control.BigImage = function (options) {
+    L.control.bigImage = function (options) {
         return new L.Control.BigImage(options);
     };
 }, window));
