@@ -1,0 +1,24 @@
+{
+  "name": "leaflet.BigImage",
+  "version": "1.0.1",
+  "homepage": "https://github.com/pasichnykvasyl/Leaflet.BigImage",
+  "description": "A leaflet plugin that allows users to receive a map as an Big image and donwload it.",
+  "main": "src/Leaflet.BigImage.js",
+  "author": "Vasyl Pasichnyk <pasichnykupwork@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:pasichnykvasyl/Leaflet.BigImage.git"
+  },
+  "keywords": [
+    "leaflet",
+    "print",
+    "plugin",
+    "image",
+    "BigImage"
+  ],
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "devDependencies": {
+    "leaflet": "^1.0.0"
+  }
+}
