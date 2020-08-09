@@ -75,6 +75,9 @@
 
             this._createControlPanel(classesToAdd, context, label, title, fn);
 
+            L.DomEvent.disableScrollPropagation(this._container);
+            L.DomEvent.disableClickPropagation(this._container);
+
             return this._container;
         },
 
