@@ -1,8 +1,4 @@
-a.polyline-measure-controlOnBgColor, a.polyline-measure-controlOnBgColor:hover {
-    background-color: #8f8;
-}
-
-.polyline-measure-unicode-icon {
+.bigimage-unicode-icon {
     font-size: 19px;
     font-weight: bold;
     display: block;
@@ -10,7 +6,7 @@ a.polyline-measure-controlOnBgColor, a.polyline-measure-controlOnBgColor:hover {
     cursor: pointer;
 }
 
-.polyline-measure-unicode-icon-disable {
+.bigimage-unicode-icon-disable {
     display: none !important;
 }
 

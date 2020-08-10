@@ -27,7 +27,7 @@
             printControlLabel: '&#128438;',
             printControlClasses: [],
             printControlTitle: 'Get image',
-            _unicodeClass: 'polyline-measure-unicode-icon',
+            _unicodeClass: 'bigimage-unicode-icon',
             maxScale: 10,
             minScale: 1,
             inputTitle: 'Choose scale:',
@@ -49,7 +49,7 @@
         _click: function (e) {
             this._container.classList.add('leaflet-control-layers-expanded');
             this._containerParams.style.display = '';
-            this._controlPanel.classList.add('polyline-measure-unicode-icon-disable');
+            this._controlPanel.classList.add('bigimage-unicode-icon-disable');
         },
 
         _createControl: function (label, title, classesToAdd, fn, context) {
@@ -123,7 +123,7 @@
             span.addEventListener('click', () => {
                 this._container.classList.remove('leaflet-control-layers-expanded');
                 this._containerParams.style.display = 'none';
-                this._controlPanel.classList.remove('polyline-measure-unicode-icon-disable');
+                this._controlPanel.classList.remove('bigimage-unicode-icon-disable');
             });
 
             this._containerParams.appendChild(span);
