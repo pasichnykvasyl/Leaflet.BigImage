@@ -163,6 +163,11 @@
                             new_resolve();
                         } else if (layer instanceof L.Path) {
                             self._getPathLayer(layer, new_resolve);
+                        }
+                        // Heatmap: Instanceof not working
+                        else if (layer._heat){
+                            self._getHeatLayer(layer, new_resolve)
+                            console.log('ok')
                         } else {
                             new_resolve();
                         }
@@ -228,6 +233,37 @@
                 return;
             }
 
+            let pixelPoint = self._map.project(layer._latlng);
+            pixelPoint = pixelPoint.subtract(new L.Point(self.bounds.min.x, self.bounds.min.y));
+
+            if (layer.options.icon && layer.options.icon.options && layer.options.icon.options.iconAnchor) {
+                pixelPoint.x -= layer.options.icon.options.iconAnchor[0];
+                pixelPoint.y -= layer.options.icon.options.iconAnchor[1];
+            }
+
+            if (!self._pointPositionIsNotCorrect(pixelPoint)) {
+                let image = new Image();
+                image.crossOrigin = 'Anonymous';
+                image.onload = function () {
+                    self.markers[layer._leaflet_id] = {img: image, x: pixelPoint.x, y: pixelPoint.y};
+                    resolve();
+                };
+                image.src = layer._icon.src;
+            } else {
+                resolve();
+            }
+        },
+
+        _getHeatLayer: function (layer, resolve) {
+            let self = this;
+
+            // TODO: Implementation
+            if (self.markers[layer._leaflet_id]) {
+                resolve();
+                return;
+            }
+
+            // TODO: Not just a point
             let pixelPoint = self._map.project(layer._latlng);
             pixelPoint = pixelPoint.subtract(new L.Point(self.bounds.min.x, self.bounds.min.y));
 
