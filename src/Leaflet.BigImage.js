@@ -211,10 +211,11 @@
         _loadTile: function (tilePoint, tilePos, layer, resolve) {
             let self = this;
             let imgIndex = tilePoint.x + ':' + tilePoint.y + ':' + self.zoom;
+            self.tilesImgs[layer._leaflet_id] = {};
             let image = new Image();
             image.crossOrigin = 'Anonymous';
             image.onload = function () {
-                if (!self.tilesImgs[imgIndex]) self.tilesImgs[imgIndex] = {img: image, x: tilePos.x, y: tilePos.y};
+                if (!self.tilesImgs[layer._leaflet_id][imgIndex]) self.tilesImgs[layer._leaflet_id][imgIndex] = {img: image, x: tilePos.x, y: tilePos.y};
                 resolve();
             };
             image.src = layer.getTileUrl(tilePoint);
@@ -384,8 +385,10 @@
 
             promise.then(() => {
                 return new Promise(((resolve, reject) => {
-                    for (const [key, value] of Object.entries(self.tilesImgs)) {
-                        self.ctx.drawImage(value.img, value.x, value.y, self.tileSize, self.tileSize);
+                    for (const [key, layer] of Object.entries(self.tilesImgs)) {
+                        for (const [key, value] of Object.entries(layer)) {
+                            self.ctx.drawImage(value.img, value.x, value.y, self.tileSize, self.tileSize);
+                        }
                     }
                     for (const [key, value] of Object.entries(self.path)) {
                         self._drawPath(value);
