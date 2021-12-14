@@ -215,7 +215,14 @@
             let image = new Image();
             image.crossOrigin = 'Anonymous';
             image.onload = function () {
-                if (!self.tilesImgs[layer._leaflet_id][imgIndex]) self.tilesImgs[layer._leaflet_id][imgIndex] = {img: image, x: tilePos.x, y: tilePos.y};
+                if (!self.tilesImgs[layer._leaflet_id][imgIndex]) {
+                    self.tilesImgs[layer._leaflet_id][imgIndex] = {
+                        img: image,
+                        x: tilePos.x,
+                        y: tilePos.y,
+                        opacity: layer.options.opacity
+                    };
+                }
                 resolve();
             };
             image.src = layer.getTileUrl(tilePoint);
@@ -387,6 +394,7 @@
                 return new Promise(((resolve, reject) => {
                     for (const [key, layer] of Object.entries(self.tilesImgs)) {
                         for (const [key, value] of Object.entries(layer)) {
+                            self.ctx.globalAlpha = value.opacity;
                             self.ctx.drawImage(value.img, value.x, value.y, self.tileSize, self.tileSize);
                         }
                     }
