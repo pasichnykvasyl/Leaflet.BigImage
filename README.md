@@ -8,6 +8,11 @@ A [leaflet](http://www.leafletjs.com) plugin that allows users to download an im
   - The ability to increase the area of the map without increasing.
   - Simple layers will show on image.
   - Tiles ssupport: OSM, MapBox, etc.
+
+
+## Changelog
+**14.12.2021**
+- Add support multilayer export
   
 ## Demo
 [Leaflet.BigImage](https://pasichnykvasyl.github.io/Leaflet.BigImage/)
