@@ -28,14 +28,14 @@ A [leaflet](http://www.leafletjs.com) plugin that allows users to download an im
 **Step 1.** Include the required js and css files in your document.
 
 ```html
-  <link rel="stylesheet" href="dist/Leaflet.BigImage.css">
-  <script src="dist/Leaflet.BigImage.js"></script>
+  <link rel="stylesheet" href="dist/Leaflet.BigImage.min.css">
+  <script src="dist/Leaflet.BigImage.min.js"></script>
 ```
 
 **Step 2.** Add the following line of code to your map script
 
 ``` js
-	L.control.bigImage().addTo(mymap);
+	L.control.BigImage().addTo(mymap);
 ```
 
 **Step 3.**
