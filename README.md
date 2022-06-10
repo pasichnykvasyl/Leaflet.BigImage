@@ -35,7 +35,7 @@ A [leaflet](http://www.leafletjs.com) plugin that allows users to download an im
 **Step 2.** Add the following line of code to your map script
 
 ``` js
-	L.control.BigImage().addTo(mymap);
+	L.control.bigImage({position: 'topright'}).addTo(mymap);
 ```
 
 **Step 3.**
