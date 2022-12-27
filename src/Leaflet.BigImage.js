@@ -80,7 +80,69 @@
 
             return this._container;
         },
+        _getImg: function (noscale,fn=function(){ return false; }) {
 
+            let scale_value = this._scaleInput.value;
+            if (!scale_value || scale_value < this.options.minScale || scale_value > this.options.maxScale) {
+                this._scaleInput.value = this.options.minScale;
+                return;
+            }
+
+            this._containerParams.classList.add('print-disabled');
+            this._loader.style.display = 'block';
+            let self = this;
+
+            self.tilesImgs = {};
+            self.markers = {};
+            self.path = {};
+            self.circles = {};
+
+            let dimensions = self._map.getSize();
+
+            self.zoom = self._map.getZoom();
+            self.bounds = self._map.getPixelBounds();
+
+            self.canvas = document.createElement('canvas');
+            self.canvas.width = dimensions.x;
+            self.canvas.height = dimensions.y;
+            self.ctx = self.canvas.getContext('2d');
+			         let nscale = document.getElementById('scale').value;
+            this._changeScale(nscale*noscale);
+
+            let promise = new Promise(function (resolve, reject) {
+                self._getLayers(resolve);
+            });
+
+            promise.then(() => {
+
+                return new Promise(((resolve, reject) => {
+                    for (const [key, value] of Object.entries(self.tilesImgs)) {
+                        self.ctx.drawImage(value.img, value.x, value.y, self.tileSize, self.tileSize);
+                    }
+                    for (const [key, value] of Object.entries(self.path)) {
+                        self._drawPath(value);
+                    }
+                    for (const [key, value] of Object.entries(self.markers)) {
+                        self.ctx.drawImage(value.img, value.x, value.y);
+                    }
+                    for (const [key, value] of Object.entries(self.circles)) {
+                        self._drawCircle(value);
+                    }
+                    resolve();
+                }));
+            }).then(() => {	
+
+                self.canvas.toBlob(function (blob) {
+					            fn(blob);
+                });
+
+                self._containerParams.classList.remove('print-disabled');
+                self._loader.style.display = 'none';
+
+            }).catch((err) => {
+				         console.error(err);
+			         });
+        },
         _createDownloadButton: function () {
             this._downloadBtn = document.createElement('div');
             this._downloadBtn.classList.add('download-button');
