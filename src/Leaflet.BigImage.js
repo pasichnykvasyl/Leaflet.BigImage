@@ -215,7 +215,7 @@
             let image = new Image();
             image.crossOrigin = 'Anonymous';
             image.onload = function () {
-                if (!self.tilesImgs[layer._leaflet_id][imgIndex]) self.tilesImgs[layer._leaflet_id][imgIndex] = {img: image, x: tilePos.x, y: tilePos.y};
+                if (!self.tilesImgs[layer._leaflet_id][imgIndex]) self.tilesImgs[layer._leaflet_id][imgIndex] = { img: image, x: tilePos.x, y: tilePos.y };
                 resolve();
             };
             image.src = layer.getTileUrl(tilePoint);
@@ -241,7 +241,7 @@
                 let image = new Image();
                 image.crossOrigin = 'Anonymous';
                 image.onload = function () {
-                    self.markers[layer._leaflet_id] = {img: image, x: pixelPoint.x, y: pixelPoint.y};
+                    self.markers[layer._leaflet_id] = { img: image, x: pixelPoint.x, y: pixelPoint.y };
                     resolve();
                 };
                 image.src = layer._icon.src;
@@ -266,6 +266,7 @@
             }
 
             let latlngs = layer.options.fill ? layer._latlngs[0] : layer._latlngs;
+            if (Array.isArray(latlngs[0])) { latlngs = latlngs.flat(); }
             latlngs.forEach((latLng) => {
                 let pixelPoint = self._map.project(latLng);
                 pixelPoint = pixelPoint.subtract(new L.Point(self.bounds.min.x, self.bounds.min.y));
