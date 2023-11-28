@@ -323,7 +323,7 @@
 
         _drawText: function (layer, resolve) {
             let oldColour = this.ctx.fillStyle;
-            this.ctx.font = "regular 18px arial";
+            this.ctx.font = "regular 16px arial";
             this.ctx.fillStyle = 'white';
             this.ctx.fillText(layer.html.nodeValue, layer.x, layer.y)
             this.ctx.fillStyle = oldColour;
