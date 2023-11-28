@@ -24,7 +24,7 @@
         options: {
             position: 'topright',
             title: 'Get image',
-            printControlLabel: '&#128438;',
+            printControlLabel: '⤵️',
             printControlClasses: [],
             printControlTitle: 'Get image',
             _unicodeClass: 'bigimage-unicode-icon',
@@ -152,7 +152,7 @@
             self._map.eachLayer(function (layer) {
                 promises.push(new Promise((new_resolve) => {
                     try {
-                        if (layer instanceof L.Marker && layer._icon && layer._icon.src) {
+                        if (layer instanceof L.Marker) {
                             self._getMarkerLayer(layer, new_resolve)
                         } else if (layer instanceof L.TileLayer) {
                             self._getTileLayer(layer, new_resolve);
@@ -172,12 +172,16 @@
                     }
                 }));
             });
-
             Promise.all(promises).then(() => {
                 resolve()
             });
         },
 
+        /**
+         * Loads the layer for the map
+         * @param {*} layer 
+         * @param {*} resolve 
+         */
         _getTileLayer: function (layer, resolve) {
             let self = this;
 
@@ -236,14 +240,19 @@
                 pixelPoint.y -= layer.options.icon.options.iconAnchor[1];
             }
 
-            if (!self._pointPositionIsNotCorrect(pixelPoint)) {
+            if (!self._pointPositionIsNotCorrect(pixelPoint) && layer._icon.src) {
                 let image = new Image();
                 image.crossOrigin = 'Anonymous';
+                image.src = layer._icon.src
                 image.onload = function () {
                     self.markers[layer._leaflet_id] = { img: image, x: pixelPoint.x, y: pixelPoint.y };
                     resolve();
                 };
-                image.src = layer._icon.src;
+                return;
+            } else if (!self._pointPositionIsNotCorrect(pixelPoint) && layer._icon.innerHTML && !layer._icon.src) {
+                let html = new Text(layer._icon.innerHTML);
+                self.markers[layer._leaflet_id] = { html: html, x: pixelPoint.x, y: pixelPoint.y };
+                resolve();
             } else {
                 resolve();
             }
@@ -309,6 +318,14 @@
             if (value.closed) self.ctx.closePath();
 
             this._feelPath(options);
+        },
+
+        _drawText: function (layer, resolve) {
+            let oldColour = this.ctx.fillStyle;
+            this.ctx.font = "regular 16px arial";
+            this.ctx.fillStyle = 'white';
+            this.ctx.fillText(layer.html.nodeValue, layer.x, layer.y)
+            this.ctx.fillStyle = oldColour;
         },
 
         _drawCircle: function (layer, resolve) {
@@ -382,7 +399,6 @@
             let promise = new Promise(function (resolve, reject) {
                 self._getLayers(resolve);
             });
-
             promise.then(() => {
                 return new Promise(((resolve, reject) => {
                     for (const [key, layer] of Object.entries(self.tilesImgs)) {
@@ -396,7 +412,11 @@
                         self._drawPath(value);
                     }
                     for (const [key, value] of Object.entries(self.markers)) {
-                        self.ctx.drawImage(value.img, value.x, value.y);
+                        if (!(value instanceof HTMLImageElement) && !value.img) {
+                            self._drawText(value, value.x, value.y);
+                        } else {
+                            self.ctx.drawImage(value.img, value.x, value.y);
+                        }
                     }
                     for (const [key, value] of Object.entries(self.circles)) {
                         self._drawCircle(value);
@@ -406,7 +426,7 @@
             }).then(() => {
                 self.canvas.toBlob(function (blob) {
                     let link = document.createElement('a');
-                    link.download = "bigImage.png";
+                    link.download = "mapExport.png";
                     link.href = URL.createObjectURL(blob);
                     link.click();
                 });
