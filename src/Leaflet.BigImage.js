@@ -201,7 +201,6 @@
                 let tilePos = originalTilePoint.scaleBy(new L.Point(self.tileSize, self.tileSize)).subtract(self.bounds.min);
 
                 if (tilePoint.y < 0) return;
-
                 promiseArray.push(new Promise(resolve => {
                     self._loadTile(tilePoint, tilePos, layer, resolve);
                 }));
@@ -219,7 +218,7 @@
             let image = new Image();
             image.crossOrigin = 'Anonymous';
             image.onload = function () {
-                if (!self.tilesImgs[layer._leaflet_id][imgIndex]) self.tilesImgs[layer._leaflet_id][imgIndex] = { img: image, x: tilePos.x, y: tilePos.y };
+                if (!self.tilesImgs[layer._leaflet_id][imgIndex]) self.tilesImgs[layer._leaflet_id][imgIndex] = { img: image, x: tilePos.x, y: tilePos.y, opacity: layer.options.opacity };
                 resolve();
             };
             image.src = layer.getTileUrl(tilePoint);
@@ -323,7 +322,7 @@
 
         _drawText: function (layer, resolve) {
             let oldColour = this.ctx.fillStyle;
-            this.ctx.font = "bold 36px arial";
+            this.ctx.font = "regular 16px arial";
             this.ctx.fillStyle = 'white';
             this.ctx.fillText(layer.html.nodeValue, layer.x, layer.y)
             this.ctx.fillStyle = oldColour;
@@ -404,7 +403,9 @@
                 return new Promise(((resolve, reject) => {
                     for (const [key, layer] of Object.entries(self.tilesImgs)) {
                         for (const [key, value] of Object.entries(layer)) {
+                            self.ctx.globalAlpha = value.opacity;
                             self.ctx.drawImage(value.img, value.x, value.y, self.tileSize, self.tileSize);
+                            self.ctx.globalAlpha = 1;
                         }
                     }
                     for (const [key, value] of Object.entries(self.path)) {
