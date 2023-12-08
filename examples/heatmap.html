@@ -1,0 +1,44 @@
+<html>
+<head>
+
+    <title>Leaflet heatmap -- BigImage</title>
+
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+    <link crossorigin="" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+          integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+          rel="stylesheet">
+    <script crossorigin=""
+            integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+            src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+
+
+    <link href="../dist/Leaflet.BigImage.min.css" rel="stylesheet">
+    <script src="../dist/Leaflet.BigImage.min.js"></script>
+
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <script src="http://leaflet.github.io/Leaflet.markercluster/example/realworld.10000.js"></script>
+</head>
+<body>
+
+
+<div class="leaflet-container leaflet-fade-anim leaflet-grab leaflet-touch-drag" id="mapid"
+     style="width: 1000px; height: 700px; position: relative; outline: none;" tabindex="0"></div>
+<script>
+
+    var mymap = L.map('mapid').setView([-37.87, 175.475], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(mymap);
+
+    var heat = L.heatLayer(addressPoints).addTo(mymap);
+
+    L.control.bigImage({position: 'topright'}).addTo(mymap);
+
+
+</script>
+</body>
+</html>
