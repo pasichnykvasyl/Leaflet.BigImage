@@ -2,51 +2,59 @@
 
 ## General information
 
-A [leaflet](http://www.leafletjs.com) plugin that allows users to download an image with a scaled-up version of the visible map.
-* Opportunities:
-  - Compatible with Leaflet v1+.
-  - The ability to increase the area of the map without increasing.
-  - Simple layers will show on image.
-  - Tiles ssupport: OSM, MapBox, etc.
+A [Leaflet](http://www.leafletjs.com) plugin that allows users to download an image with a scaled-up version of the visible map.
 
+### Features:
+- Compatible with Leaflet v2+.
+- Ability to export a larger area of the map without zooming in.
+- Basic layers (markers, circles, polygons) are included in the exported image.
+- Supports tile layers: OSM, MapBox, etc.
 
 ## Changelog
+
 **14.12.2021**
-- Add support multilayer export
-  
-## Demo
-[Leaflet.BigImage](https://pasichnykvasyl.github.io/Leaflet.BigImage/)
+- Added support for multilayer export.
+
+**14.09.2025**
+- Added support for Leaflet 2.0.
+
+[//]: # (## Demo)
+
+[//]: # ([Leaflet.BigImage]&#40;https://pasichnykvasyl.github.io/Leaflet.BigImage/&#41;)
 
 ## Downloads
 **NPM**
+```bash
+npm install --save leaflet.bigimage
 ````
-	npm install --save leaflet.bigimage
-````
+
+**CDN / Local (Leaflet 1.x)**
+```html
+<link rel="stylesheet" href="dist/Leaflet.BigImage.min.css">
+<script src="dist/Leaflet.BigImage.min.js"></script>
+```
+
 
 ## Usage
 
-**Step 1.** Include the required js and css files in your document.
-
-```html
-  <link rel="stylesheet" href="dist/Leaflet.BigImage.min.css">
-  <script src="dist/Leaflet.BigImage.min.js"></script>
-```
-
-**Step 2.** Add the following line of code to your map script
+**Leaflet 2.x (ES Modules)**
 
 ``` js
-	L.control.bigImage({position: 'topright'}).addTo(mymap);
+    import { Map, TileLayer, Marker, Circle, Polygon } from 'leaflet';
+    import { BigImageControl } from 'leaflet.bigimage';
+    
+    mymap.addControl(new BigImageControl({ position: 'topright' }));
 ```
 
-**Step 3.**
+**Options**
 You can pass a number of options to the plugin to control various settings.
-| Option              | Type         | Default      | Description   |
-| --------------------|--------------|--------------|---------------|
-| position            | String       | 'topright'   | Position the print button |
-| title               | String       | 'Get image'  | Sets the text which appears as the tooltip of the control button |
-| printControlLabel   | String       | '&#128438;'  | Sets icon to the control button |
-| printControlClasses | Array        | []           | Sets classes to the control button |
-| maxScale            | Int          | 10           | Max image scale |
-| minScale            | Int          | 1            | Min image scale |
-| inputTitle          | String       | 'Choose scale:'  | Title before scale input |
-| downloadTitle       | String       | 'Download'  | Text on the download button |
+| Option              | Type   | Default         | Description                        |
+| ------------------- | ------ | --------------- | ---------------------------------- |
+| position            | String | 'topright'      | Position of the print button       |
+| title               | String | 'Get image'     | Tooltip text of the control button |
+| printControlLabel   | String | '⤵️'            | Icon of the control button         |
+| printControlClasses | Array  | \[]             | CSS classes for the control button |
+| maxScale            | Number | 10              | Maximum export image scale         |
+| minScale            | Number | 1               | Minimum export image scale         |
+| inputTitle          | String | 'Choose scale:' | Title above the scale input        |
+| downloadTitle       | String | 'Download'      | Text on the download button        |

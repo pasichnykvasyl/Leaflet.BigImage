@@ -1,27 +1,30 @@
 /*
- Leaflet.BigImage (https://github.com/pasichnykvasyl/Leaflet.BigImage).
- (c) 2020, Vasyl Pasichnyk, pasichnykvasyl (Oswald)
+ Leaflet.BigImage (Leaflet 2.0+ compatible).
+ (c) 2020 Vasyl Pasichnyk, updated 2025 for Leaflet v2.0
+
+ Fully compatible with Leaflet 2.0:
+ - Uses constructors instead of factory methods
+ - Explicit imports (no global L object)
+ - Native browser methods instead of Util methods
+ - Modern ES6+ features and best practices
 */
 
-(function (factory, window) {
+import {
+    Control,
+    DomEvent,
+    Marker,
+    TileLayer,
+    Circle,
+    Path,
+    Point,
+    Bounds
+} from 'leaflet';
 
-    // define an AMD module that relies on 'leaflet'
-    if (typeof define === 'function' && define.amd) {
-        define(['leaflet'], factory);
+export class BigImageControl extends Control {
+    constructor(options = {}) {
+        super(options);
 
-        // define a Common JS module that relies on 'leaflet'
-    } else if (typeof exports === 'object') {
-        module.exports = factory(require('leaflet'));
-    }
-
-    // attach your plugin to the global 'L' variable
-    if (typeof window !== 'undefined' && window.L) {
-        window.L.YourPlugin = factory(L);
-    }
-}(function (L) {
-
-    L.Control.BigImage = L.Control.extend({
-        options: {
+        this.options = {
             position: 'topright',
             title: 'Get image',
             printControlLabel: '⤵️',
@@ -31,412 +34,569 @@
             maxScale: 10,
             minScale: 1,
             inputTitle: 'Choose scale:',
-            downloadTitle: 'Download'
-        },
+            downloadTitle: 'Download',
+            exportFormat: 'png',
+            fileName: 'mapExport',
+            hideControlOnPrint: true,
+            crossOrigin: 'anonymous',
+            ...options
+        };
 
-        onAdd: function (map) {
-            this._map = map;
+        this.isProcessing = false;
+        this.tilesImgs = {};
+        this.markers = {};
+        this.paths = {};
+        this.circles = {};
+    }
 
-            const title = this.options.printControlTitle;
-            const label = this.options.printControlLabel;
-            let classes = this.options.printControlClasses;
+    onAdd(map) {
+        this._map = map;
+        return this._createControl();
+    }
 
-            if (label.indexOf('&') != -1) classes.push(this.options._unicodeClass);
+    onRemove() {
+        this._cleanup();
+    }
 
-            return this._createControl(label, title, classes, this._click, this);
-        },
+    _createControl() {
+        const { printControlTitle, printControlLabel, printControlClasses, _unicodeClass } = this.options;
 
-        _click: function (e) {
-            this._container.classList.add('leaflet-control-layers-expanded');
-            this._containerParams.style.display = '';
-            this._controlPanel.classList.add('bigimage-unicode-icon-disable');
-        },
+        let classes = [...printControlClasses];
+        if (printControlLabel.includes('&') && !classes.includes(_unicodeClass)) {
+            classes.push(_unicodeClass);
+        }
 
-        _createControl: function (label, title, classesToAdd, fn, context) {
+        return this._buildControlStructure(printControlLabel, printControlTitle, classes);
+    }
 
-            this._container = document.createElement('div');
-            this._container.id = 'print-container';
-            this._container.classList.add('leaflet-bar');
+    _buildControlStructure(label, title, classesToAdd) {
+        this._container = this._createElement('div', {
+            id: 'print-container',
+            className: 'leaflet-bar'
+        });
 
-            this._containerParams = document.createElement('div');
-            this._containerParams.id = 'print-params';
-            this._containerParams.style.display = 'none';
+        this._containerParams = this._createElement('div', {
+            id: 'print-params',
+            style: 'display: none;'
+        });
 
-            this._createCloseButton();
+        this._buildParametersPanel();
+        this._buildControlButton(label, title, classesToAdd);
+        this._buildLoader();
 
-            let containerTitle = document.createElement('h6');
-            containerTitle.style.width = '100%';
-            containerTitle.innerHTML = this.options.inputTitle;
-            this._containerParams.appendChild(containerTitle);
+        this._container.appendChild(this._containerParams);
 
-            this._createScaleInput();
-            this._createDownloadButton();
-            this._container.appendChild(this._containerParams);
+        DomEvent.disableScrollPropagation(this._container);
+        DomEvent.disableClickPropagation(this._container);
 
-            this._createControlPanel(classesToAdd, context, label, title, fn);
+        return this._container;
+    }
 
-            L.DomEvent.disableScrollPropagation(this._container);
-            L.DomEvent.disableClickPropagation(this._container);
+    _buildParametersPanel() {
+        const closeBtn = this._createElement('div', {
+            className: 'close',
+            innerHTML: '&times;'
+        });
 
-            return this._container;
-        },
+        closeBtn.addEventListener('click', () => this._hidePanel());
+        this._containerParams.appendChild(closeBtn);
 
-        _createDownloadButton: function () {
-            this._downloadBtn = document.createElement('div');
-            this._downloadBtn.classList.add('download-button');
+        const title = this._createElement('h6', {
+            innerHTML: this.options.inputTitle
+        });
+        this._containerParams.appendChild(title);
 
-            this._downloadBtn = document.createElement('div');
-            this._downloadBtn.classList.add('download-button');
-            this._downloadBtn.innerHTML = this.options.downloadTitle;
+        this._scaleInput = this._createElement('input', {
+            type: 'number',
+            value: this.options.minScale,
+            min: this.options.minScale,
+            max: this.options.maxScale,
+            id: 'scale'
+        });
+        this._containerParams.appendChild(this._scaleInput);
 
-            this._downloadBtn.addEventListener('click', () => {
-                let scale_value = this._scaleInput.value;
-                if (!scale_value || scale_value < this.options.minScale || scale_value > this.options.maxScale) {
-                    this._scaleInput.value = this.options.minScale;
-                    return;
+        if (this.options.showFormatSelector !== false) {
+            const formatLabel = this._createElement('label', {
+                innerHTML: 'Format:'
+            });
+
+            const formatSelect = this._createElement('select', {
+                id: 'format'
+            });
+
+            const formats = ['png', 'jpeg', 'webp'];
+            formats.forEach(format => {
+                const option = this._createElement('option', {
+                    value: format,
+                    innerHTML: format.toUpperCase(),
+                    selected: format === this.options.exportFormat
+                });
+                formatSelect.appendChild(option);
+            });
+
+            this._formatSelect = formatSelect;
+            this._containerParams.appendChild(formatLabel);
+            this._containerParams.appendChild(formatSelect);
+        }
+
+        this._downloadBtn = this._createElement('div', {
+            className: 'download-button',
+            innerHTML: this.options.downloadTitle
+        });
+
+        this._downloadBtn.addEventListener('click', () => this._handleDownload());
+        this._containerParams.appendChild(this._downloadBtn);
+    }
+
+    _buildControlButton(label, title, classesToAdd) {
+        const controlPanel = this._createElement('a', {
+            innerHTML: label,
+            id: 'print-btn',
+            title: title,
+            href: '#',
+        });
+
+        classesToAdd.forEach(className => controlPanel.classList.add(className));
+
+        DomEvent.on(controlPanel, 'click', this._showPanel, this);
+        this._container.appendChild(controlPanel);
+        this._controlPanel = controlPanel;
+    }
+
+    _buildLoader() {
+        this._loader = this._createElement('div', {
+            id: 'print-loading'
+        });
+        this._container.appendChild(this._loader);
+    }
+
+    _createElement(tag, attributes = {}) {
+        const element = document.createElement(tag);
+
+        Object.entries(attributes).forEach(([key, value]) => {
+            if (key === 'className') {
+                element.className = value;
+            } else if (key === 'innerHTML') {
+                element.innerHTML = value;
+            } else {
+                element.setAttribute(key, value);
+            }
+        });
+
+        return element;
+    }
+
+    _showPanel(e) {
+        e.preventDefault();
+        this._container.classList.add('leaflet-control-layers-expanded');
+        this._containerParams.style.display = '';
+        this._controlPanel.classList.add('bigimage-unicode-icon-disable');
+    }
+
+    _hidePanel() {
+        this._container.classList.remove('leaflet-control-layers-expanded');
+        this._containerParams.style.display = 'none';
+        this._controlPanel.classList.remove('bigimage-unicode-icon-disable');
+    }
+
+    async _handleDownload() {
+        if (this.isProcessing) return;
+
+        const scaleValue = Number(this._scaleInput.value);
+        if (!this._validateScale(scaleValue)) {
+            this._scaleInput.value = this.options.minScale;
+            return;
+        }
+
+        this.isProcessing = true;
+        this._showProgress(true);
+
+        try {
+            await this._generateAndDownloadImage(scaleValue);
+        } catch (error) {
+            console.error('Error generating image:', error);
+            alert('Error generating image. Please try again.');
+        } finally {
+            this.isProcessing = false;
+            this._showProgress(false);
+        }
+    }
+
+    _validateScale(scale) {
+        return scale && scale >= this.options.minScale && scale <= this.options.maxScale;
+    }
+
+    _showProgress(show) {
+        if (show) {
+            this._containerParams.classList.add('print-disabled');
+            this._loader.classList.add('show');
+        } else {
+            this._containerParams.classList.remove('print-disabled');
+            this._loader.classList.remove('show');
+        }
+    }
+
+    async _generateAndDownloadImage(scale) {
+
+        this.tilesImgs = {};
+        this.markers = {};
+        this.paths = {};
+        this.circles = {};
+
+        const dimensions = this._map.getSize();
+        this.zoom = this._map.getZoom();
+        this.bounds = this._map.getPixelBounds();
+
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = dimensions.x;
+        this.canvas.height = dimensions.y;
+        this.ctx = this.canvas.getContext('2d');
+
+        this._applyScale(scale);
+
+        await this._processLayers();
+        await this._renderToCanvas();
+
+        this._downloadCanvas();
+    }
+
+    _applyScale(scale) {
+        if (!scale || scale <= 1) return;
+
+        const addX = (this.bounds.max.x - this.bounds.min.x) / 2 * (scale - 1);
+        const addY = (this.bounds.max.y - this.bounds.min.y) / 2 * (scale - 1);
+
+        this.bounds.min.x -= addX;
+        this.bounds.min.y -= addY;
+        this.bounds.max.x += addX;
+        this.bounds.max.y += addY;
+
+        this.canvas.width *= scale;
+        this.canvas.height *= scale;
+    }
+
+    async _processLayers() {
+        const layerPromises = [];
+
+        this._map.eachLayer(layer => {
+            if (layer instanceof TileLayer) {
+                layerPromises.push(this._processTileLayer(layer));
+            } else if (layer instanceof Marker) {
+                layerPromises.push(this._processMarker(layer));
+            } else if (layer instanceof Circle) {
+                this._processCircle(layer);
+            } else if (layer instanceof Path) {
+                this._processPath(layer);
+            }
+        });
+
+        await Promise.allSettled(layerPromises);
+    }
+
+    async _processTileLayer(layer) {
+        this.tilesImgs[layer._leaflet_id] = {};
+        const tileSize = layer.options.tileSize || 256;
+
+        const tileBounds = new Bounds(
+          this.bounds.min.divideBy(tileSize)._floor(),
+          this.bounds.max.divideBy(tileSize)._floor()
+        );
+
+        const tilePromises = [];
+
+        for (let j = tileBounds.min.y; j <= tileBounds.max.y; j++) {
+            for (let i = tileBounds.min.x; i <= tileBounds.max.x; i++) {
+                if (j < 0) continue;
+
+                const tilePoint = new Point(i, j);
+                const originalTilePoint = tilePoint.clone();
+
+                if (layer._adjustTilePoint) {
+                    layer._adjustTilePoint(tilePoint);
                 }
 
-                this._containerParams.classList.add('print-disabled');
-                this._loader.style.display = 'block';
-                this._print();
-            });
-            this._containerParams.appendChild(this._downloadBtn);
-        },
+                const tilePos = originalTilePoint
+                  .scaleBy(new Point(tileSize, tileSize))
+                  .subtract(this.bounds.min);
 
-        _createScaleInput: function () {
-            this._scaleInput = document.createElement('input');
-            this._scaleInput.style.width = '100%';
-            this._scaleInput.type = 'number';
-            this._scaleInput.value = this.options.minScale;
-            this._scaleInput.min = this.options.minScale;
-            this._scaleInput.max = this.options.maxScale;
-            this._scaleInput.id = 'scale';
-            this._containerParams.appendChild(this._scaleInput);
+                tilePromises.push(this._loadTile(tilePoint, tilePos, layer, tileSize));
+            }
+        }
 
-        },
+        await Promise.allSettled(tilePromises);
+    }
 
-        _createCloseButton: function () {
-            let span = document.createElement('div');
-            span.classList.add('close');
-            span.innerHTML = '&times;';
+    async _loadTile(tilePoint, tilePos, layer, tileSize) {
+        return new Promise((resolve) => {
+            const imgIndex = `${tilePoint.x}:${tilePoint.y}:${this.zoom}`;
+            const image = new Image();
 
-            span.addEventListener('click', () => {
-                this._container.classList.remove('leaflet-control-layers-expanded');
-                this._containerParams.style.display = 'none';
-                this._controlPanel.classList.remove('bigimage-unicode-icon-disable');
-            });
+            image.crossOrigin = this.options.crossOrigin;
 
-            this._containerParams.appendChild(span);
-        },
-
-        _createControlPanel: function (classesToAdd, context, label, title, fn) {
-            let controlPanel = document.createElement('a');
-            controlPanel.innerHTML = label;
-            controlPanel.id = 'print-btn';
-            controlPanel.setAttribute('title', title);
-            classesToAdd.forEach(function (c) {
-                controlPanel.classList.add(c);
-            });
-            L.DomEvent.on(controlPanel, 'click', fn, context);
-            this._container.appendChild(controlPanel);
-            this._controlPanel = controlPanel;
-
-            this._loader = document.createElement('div');
-            this._loader.id = 'print-loading';
-            this._container.appendChild(this._loader);
-        },
-
-        _getLayers: function (resolve) {
-            let self = this;
-            let promises = [];
-            self._map.eachLayer(function (layer) {
-                promises.push(new Promise((new_resolve) => {
-                    try {
-                        if (layer instanceof L.Marker) {
-                            self._getMarkerLayer(layer, new_resolve)
-                        } else if (layer instanceof L.TileLayer) {
-                            self._getTileLayer(layer, new_resolve);
-                        } else if (layer instanceof L.Circle) {
-                            if (!self.circles[layer._leaflet_id]) {
-                                self.circles[layer._leaflet_id] = layer;
-                            }
-                            new_resolve();
-                        } else if (layer instanceof L.Path) {
-                            self._getPathLayer(layer, new_resolve);
-                        } else {
-                            new_resolve();
-                        }
-                    } catch (e) {
-                        console.log(e);
-                        new_resolve();
-                    }
-                }));
-            });
-            Promise.all(promises).then(() => {
-                resolve()
-            });
-        },
-
-        /**
-         * Loads the layer for the map
-         * @param {*} layer 
-         * @param {*} resolve 
-         */
-        _getTileLayer: function (layer, resolve) {
-            let self = this;
-
-            self.tiles = [];
-            self.tileSize = layer._tileSize.x;
-            self.tileBounds = L.bounds(self.bounds.min.divideBy(self.tileSize)._floor(), self.bounds.max.divideBy(self.tileSize)._floor());
-
-            for (let j = self.tileBounds.min.y; j <= self.tileBounds.max.y; j++)
-                for (let i = self.tileBounds.min.x; i <= self.tileBounds.max.x; i++)
-                    self.tiles.push(new L.Point(i, j));
-
-            let promiseArray = [];
-            self.tiles.forEach(tilePoint => {
-                let originalTilePoint = tilePoint.clone();
-                if (layer._adjustTilePoint) layer._adjustTilePoint(tilePoint);
-
-                let tilePos = originalTilePoint.scaleBy(new L.Point(self.tileSize, self.tileSize)).subtract(self.bounds.min);
-
-                if (tilePoint.y < 0) return;
-                promiseArray.push(new Promise(resolve => {
-                    self._loadTile(tilePoint, tilePos, layer, resolve);
-                }));
-            });
-
-            Promise.all(promiseArray).then(() => {
+            const timeout = setTimeout(() => {
                 resolve();
-            });
-        },
+            }, 10000);
 
-        _loadTile: function (tilePoint, tilePos, layer, resolve) {
-            let self = this;
-            let imgIndex = tilePoint.x + ':' + tilePoint.y + ':' + self.zoom;
-            self.tilesImgs[layer._leaflet_id] = {};
-            let image = new Image();
-            image.crossOrigin = 'Anonymous';
-            image.onload = function () {
-                if (!self.tilesImgs[layer._leaflet_id][imgIndex]) self.tilesImgs[layer._leaflet_id][imgIndex] = { img: image, x: tilePos.x, y: tilePos.y, opacity: layer.options.opacity };
+            image.onload = () => {
+                clearTimeout(timeout);
+                this.tilesImgs[layer._leaflet_id][imgIndex] = {
+                    img: image,
+                    x: tilePos.x,
+                    y: tilePos.y,
+                    opacity: layer.options.opacity ?? 1,
+                    tileSize
+                };
                 resolve();
             };
-            image.src = layer.getTileUrl(tilePoint);
-        },
 
-        _getMarkerLayer: function (layer, resolve) {
-            let self = this;
-
-            if (self.markers[layer._leaflet_id]) {
+            image.onerror = () => {
+                clearTimeout(timeout);
                 resolve();
-                return;
+            };
+
+            try {
+                image.src = layer.getTileUrl(tilePoint);
+            } catch (error) {
+                clearTimeout(timeout);
+                resolve();
             }
+        });
+    }
 
-            let pixelPoint = self._map.project(layer._latlng);
-            pixelPoint = pixelPoint.subtract(new L.Point(self.bounds.min.x, self.bounds.min.y));
+    async _processMarker(layer) {
+        if (this.markers[layer._leaflet_id]) return;
 
-            if (layer.options.icon && layer.options.icon.options && layer.options.icon.options.iconAnchor) {
-                pixelPoint.x -= layer.options.icon.options.iconAnchor[0];
-                pixelPoint.y -= layer.options.icon.options.iconAnchor[1];
-            }
+        let pixelPoint = this._map.project(layer._latlng);
+        pixelPoint = pixelPoint.subtract(new Point(this.bounds.min.x, this.bounds.min.y));
 
-            if (!self._pointPositionIsNotCorrect(pixelPoint) && layer._icon.src) {
-                let image = new Image();
-                image.crossOrigin = 'Anonymous';
-                image.src = layer._icon.src
-                image.onload = function () {
-                    self.markers[layer._leaflet_id] = { img: image, x: pixelPoint.x, y: pixelPoint.y };
-                    resolve();
+        const icon = layer.options.icon;
+        if (icon?.options?.iconAnchor) {
+            pixelPoint.x -= icon.options.iconAnchor[0];
+            pixelPoint.y -= icon.options.iconAnchor[1];
+        }
+
+        if (this._isPointVisible(pixelPoint)) {
+            if (layer._icon?.src) {
+                await this._loadMarkerImage(layer, pixelPoint);
+            } else if (layer._icon?.innerHTML && !layer._icon.src) {
+                this.markers[layer._leaflet_id] = {
+                    html: layer._icon.innerHTML,
+                    x: pixelPoint.x,
+                    y: pixelPoint.y
                 };
-                return;
-            } else if (!self._pointPositionIsNotCorrect(pixelPoint) && layer._icon.innerHTML && !layer._icon.src) {
-                let html = new Text(layer._icon.innerHTML);
-                self.markers[layer._leaflet_id] = { html: html, x: pixelPoint.x, y: pixelPoint.y };
-                resolve();
-            } else {
-                resolve();
             }
-        },
+        }
+    }
 
-        _pointPositionIsNotCorrect: function (point) {
-            return (point.x < 0 || point.y < 0 || point.x > this.canvas.width || point.y > this.canvas.height);
-        },
+    async _loadMarkerImage(layer, pixelPoint) {
+        return new Promise((resolve) => {
+            const image = new Image();
+            image.crossOrigin = this.options.crossOrigin;
 
-        _getPathLayer: function (layer, resolve) {
-            let self = this;
+            const timeout = setTimeout(resolve, 5000);
 
-            let correct = 0;
-            let parts = [];
-
-            if (layer._mRadius || !layer._latlngs) {
+            image.onload = () => {
+                clearTimeout(timeout);
+                this.markers[layer._leaflet_id] = {
+                    img: image,
+                    x: pixelPoint.x,
+                    y: pixelPoint.y
+                };
                 resolve();
-                return;
+            };
+
+            image.onerror = () => {
+                clearTimeout(timeout);
+                resolve();
+            };
+
+            image.src = layer._icon.src;
+        });
+    }
+
+    _processCircle(layer) {
+        if (!this.circles[layer._leaflet_id]) {
+            this.circles[layer._leaflet_id] = layer;
+        }
+    }
+
+    _processPath(layer) {
+        if (layer._mRadius || !layer._latlngs) return;
+
+        const parts = [];
+        let hasVisiblePoints = false;
+
+        let latlngs = layer.options.fill ? layer._latlngs[0] : layer._latlngs;
+
+        if (Array.isArray(latlngs[0])) {
+            latlngs = latlngs.flat();
+        }
+
+        latlngs.forEach(latLng => {
+            let pixelPoint = this._map.project(latLng);
+            pixelPoint = pixelPoint.subtract(new Point(this.bounds.min.x, this.bounds.min.y));
+            parts.push(pixelPoint);
+
+            if (this._isPointVisible(pixelPoint)) {
+                hasVisiblePoints = true;
             }
+        });
 
-            let latlngs = layer.options.fill ? layer._latlngs[0] : layer._latlngs;
-            if (Array.isArray(latlngs[0])) { latlngs = latlngs.flat(); }
-            latlngs.forEach((latLng) => {
-                let pixelPoint = self._map.project(latLng);
-                pixelPoint = pixelPoint.subtract(new L.Point(self.bounds.min.x, self.bounds.min.y));
-                parts.push(pixelPoint);
-                if (pixelPoint.x < self.canvas.width && pixelPoint.y < self.canvas.height) correct = 1;
-            });
-
-            if (correct) self.path[layer._leaflet_id] = {
-                parts: parts,
+        if (hasVisiblePoints) {
+            this.paths[layer._leaflet_id] = {
+                parts,
                 closed: layer.options.fill,
                 options: layer.options
             };
-            resolve();
-        },
+        }
+    }
 
-        _changeScale: function (scale) {
-            if (!scale || scale <= 1) return 0;
+    _isPointVisible(point) {
+        return point.x >= 0 && point.y >= 0 &&
+          point.x <= this.canvas.width &&
+          point.y <= this.canvas.height;
+    }
 
-            let addX = (this.bounds.max.x - this.bounds.min.x) / 2 * (scale - 1);
-            let addY = (this.bounds.max.y - this.bounds.min.y) / 2 * (scale - 1);
+    async _renderToCanvas() {
+        this.ctx.fillStyle = 'white';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-            this.bounds.min.x -= addX;
-            this.bounds.min.y -= addY;
-            this.bounds.max.x += addX;
-            this.bounds.max.y += addY;
+        this._renderTiles();
 
-            this.canvas.width *= scale;
-            this.canvas.height *= scale;
-        },
+        this._renderPaths();
 
-        _drawPath: function (value) {
-            let self = this;
+        this._renderMarkers();
 
-            self.ctx.beginPath();
-            let count = 0;
-            let options = value.options;
-            value.parts.forEach((point) => {
-                self.ctx[count++ ? 'lineTo' : 'moveTo'](point.x, point.y);
+        this._renderCircles();
+    }
+
+    _renderTiles() {
+        Object.values(this.tilesImgs).forEach(layerTiles => {
+            Object.values(layerTiles).forEach(tile => {
+                this.ctx.globalAlpha = tile.opacity;
+                this.ctx.drawImage(tile.img, tile.x, tile.y, tile.tileSize, tile.tileSize);
             });
+        });
+        this.ctx.globalAlpha = 1;
+    }
 
-            if (value.closed) self.ctx.closePath();
+    _renderPaths() {
+        Object.values(this.paths).forEach(path => {
+            this._drawPath(path);
+        });
+    }
 
-            this._feelPath(options);
-        },
+    _renderMarkers() {
+        Object.values(this.markers).forEach(marker => {
+            if (marker.html) {
+                this._drawText(marker);
+            } else if (marker.img) {
+                this.ctx.drawImage(marker.img, marker.x, marker.y);
+            }
+        });
+    }
 
-        _drawText: function (layer, resolve) {
-            let oldColour = this.ctx.fillStyle;
-            this.ctx.font = "regular 16px arial";
-            this.ctx.fillStyle = 'white';
-            this.ctx.fillText(layer.html.nodeValue, layer.x, layer.y)
-            this.ctx.fillStyle = oldColour;
-        },
+    _renderCircles() {
+        Object.values(this.circles).forEach(circle => {
+            this._drawCircle(circle);
+        });
+    }
 
-        _drawCircle: function (layer, resolve) {
+    _drawPath(pathData) {
+        const { parts, closed, options } = pathData;
 
-            if (layer._empty()) {
+        this.ctx.beginPath();
+        parts.forEach((point, index) => {
+            this.ctx[index === 0 ? 'moveTo' : 'lineTo'](point.x, point.y);
+        });
+
+        if (closed) this.ctx.closePath();
+        this._applyPathStyle(options);
+    }
+
+    _drawText(marker) {
+        const previousFillStyle = this.ctx.fillStyle;
+        this.ctx.font = '16px Arial';
+        this.ctx.fillStyle = 'black';
+        this.ctx.strokeStyle = 'white';
+        this.ctx.lineWidth = 2;
+
+        this.ctx.strokeText(marker.html, marker.x, marker.y);
+        this.ctx.fillText(marker.html, marker.x, marker.y);
+
+        this.ctx.fillStyle = previousFillStyle;
+    }
+
+    _drawCircle(layer) {
+        if (layer._empty && layer._empty()) return;
+
+        let point = this._map.project(layer._latlng);
+        point = point.subtract(new Point(this.bounds.min.x, this.bounds.min.y));
+
+        const r = Math.max(Math.round(layer._radius), 1);
+        const s = (Math.max(Math.round(layer._radiusY), 1) || r) / r;
+
+        if (s !== 1) {
+            this.ctx.save();
+            this.ctx.scale(1, s);
+        }
+
+        this.ctx.beginPath();
+        this.ctx.arc(point.x, point.y / s, r, 0, Math.PI * 2, false);
+
+        if (s !== 1) this.ctx.restore();
+
+        this._applyPathStyle(layer.options);
+    }
+
+    _applyPathStyle(options) {
+        if (options.fill) {
+            this.ctx.globalAlpha = options.fillOpacity ?? 0.2;
+            this.ctx.fillStyle = options.fillColor || options.color || '#3388ff';
+            this.ctx.fill(options.fillRule || 'evenodd');
+        }
+
+        if (options.stroke !== false && (options.weight ?? 3) !== 0) {
+            if (this.ctx.setLineDash) {
+                this.ctx.setLineDash(options.dashArray || []);
+            }
+            this.ctx.globalAlpha = options.opacity ?? 1;
+            this.ctx.lineWidth = options.weight ?? 3;
+            this.ctx.strokeStyle = options.color || '#3388ff';
+            this.ctx.lineCap = options.lineCap || 'round';
+            this.ctx.lineJoin = options.lineJoin || 'round';
+            this.ctx.stroke();
+        }
+
+        this.ctx.globalAlpha = 1;
+    }
+
+    _downloadCanvas() {
+        const format = this._formatSelect ? this._formatSelect.value : this.options.exportFormat;
+        const mimeType = `image/${format}`;
+        const quality = format === 'jpeg' ? 0.92 : undefined;
+
+        this.canvas.toBlob(blob => {
+            if (!blob) {
+                alert('Failed to generate image');
                 return;
             }
 
-            let point = this._map.project(layer._latlng);
-            point = point.subtract(new L.Point(this.bounds.min.x, this.bounds.min.y));
+            const link = document.createElement('a');
+            link.download = `${this.options.fileName}.${format}`;
+            link.href = URL.createObjectURL(blob);
 
-            let r = Math.max(Math.round(layer._radius), 1),
-                s = (Math.max(Math.round(layer._radiusY), 1) || r) / r;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
 
-            if (s !== 1) {
-                this.ctx.save();
-                this.scale(1, s);
-            }
+            URL.revokeObjectURL(link.href);
+        }, mimeType, quality);
+    }
 
-            this.ctx.beginPath();
-            this.ctx.arc(point.x, point.y / s, r, 0, Math.PI * 2, false);
-
-            if (s !== 1) {
-                this.ctx.restore();
-            }
-
-            this._feelPath(layer.options);
-        },
-
-        _feelPath: function (options) {
-
-            if (options.fill) {
-                this.ctx.globalAlpha = options.fillOpacity;
-                this.ctx.fillStyle = options.fillColor || options.color;
-                this.ctx.fill(options.fillRule || 'evenodd');
-            }
-
-            if (options.stroke && options.weight !== 0) {
-                if (this.ctx.setLineDash) {
-                    this.ctx.setLineDash(options && options._dashArray || []);
-                }
-                this.ctx.globalAlpha = options.opacity;
-                this.ctx.lineWidth = options.weight;
-                this.ctx.strokeStyle = options.color;
-                this.ctx.lineCap = options.lineCap;
-                this.ctx.lineJoin = options.lineJoin;
-                this.ctx.stroke();
-            }
-        },
-
-        _print: function () {
-            let self = this;
-
-            self.tilesImgs = {};
-            self.markers = {};
-            self.path = {};
-            self.circles = {};
-
-            let dimensions = self._map.getSize();
-
-            self.zoom = self._map.getZoom();
-            self.bounds = self._map.getPixelBounds();
-
-            self.canvas = document.createElement('canvas');
-            self.canvas.width = dimensions.x;
-            self.canvas.height = dimensions.y;
-            self.ctx = self.canvas.getContext('2d');
-
-            this._changeScale(document.getElementById('scale').value);
-
-            let promise = new Promise(function (resolve, reject) {
-                self._getLayers(resolve);
-            });
-            promise.then(() => {
-                return new Promise(((resolve, reject) => {
-                    for (const [key, layer] of Object.entries(self.tilesImgs)) {
-                        for (const [key, value] of Object.entries(layer)) {
-                            self.ctx.globalAlpha = value.opacity;
-                            self.ctx.drawImage(value.img, value.x, value.y, self.tileSize, self.tileSize);
-                            self.ctx.globalAlpha = 1;
-                        }
-                    }
-                    for (const [key, value] of Object.entries(self.path)) {
-                        self._drawPath(value);
-                    }
-                    for (const [key, value] of Object.entries(self.markers)) {
-                        if (!(value instanceof HTMLImageElement) && !value.img) {
-                            self._drawText(value, value.x, value.y);
-                        } else {
-                            self.ctx.drawImage(value.img, value.x, value.y);
-                        }
-                    }
-                    for (const [key, value] of Object.entries(self.circles)) {
-                        self._drawCircle(value);
-                    }
-                    resolve();
-                }));
-            }).then(() => {
-                self.canvas.toBlob(function (blob) {
-                    let link = document.createElement('a');
-                    link.download = "mapExport.png";
-                    link.href = URL.createObjectURL(blob);
-                    link.click();
-                });
-                self._containerParams.classList.remove('print-disabled');
-                self._loader.style.display = 'none';
-            });
+    _cleanup() {
+        if (this._container && this._container.parentNode) {
+            this._container.parentNode.removeChild(this._container);
         }
-    });
-
-    L.control.bigImage = function (options) {
-        return new L.Control.BigImage(options);
-    };
-}, window));
+    }
+}
