@@ -47,6 +47,7 @@ npm install --save leaflet.bigimage
 ```
 
 **Options**
+
 You can pass a number of options to the plugin to control various settings.
 | Option              | Type   | Default         | Description                        |
 | ------------------- | ------ | --------------- | ---------------------------------- |
